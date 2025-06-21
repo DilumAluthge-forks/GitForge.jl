@@ -6,6 +6,7 @@ using Base.StackTraces: StackTrace
 using Dates
 using Dates: Period, UTC, now
 using HTTP: HTTP
+using URIs: URIs
 using UUIDs: UUID
 using JSON3: JSON3, @writechar, @check, realloc!
 using StructTypes: StructTypes, UnorderedStruct, StructType, DictType, StringType

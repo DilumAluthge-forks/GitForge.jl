@@ -154,6 +154,35 @@ function JSON3.write(ctx::FieldContext{FORGE, T}, buf, pos, len, x::T; kw...) wh
     return buf, pos, len
 end
 
+function assert_check_endpoint_url(url::AbstractString)
+    # Do not allow path navigation in URLs
+    # Disallowed pattern: ..
+    if occursin(r"\.\.", url)
+        throw(ArgumentError("URLs cannot contain path navigation"))
+    end
+
+    # Additional disallowed patterns:
+    # ../, ..\, /.., \.., ./, .\, /./, \.\
+    PATH_TRAVERSAL = r"(?:\.{2,}[\/\\]|\.{1,}[\/\\]|[\/\\]\.{2,}|[\/\\]\.{1,}[\/\\])"
+    if occursin(PATH_TRAVERSAL, url)
+        throw(ArgumentError("URLs cannot contain path navigation"))
+    end
+
+    # do not allow new lines or carriage returns in URLs
+    if occursin(r"\s", url)
+        throw(ArgumentError("URLs cannot contain line breaks"))
+    end
+
+    # Roundtrip the URL through `URIs.resolvereference()`, and make sure it is unchanged
+    new_path = URIs.resolvereference("https://example.invalid/", url).path
+    url_leading_slash = "/" * url
+    if (new_path != url) && (new_path != url_leading_slash)
+        throw(ArgumentError("URLs cannot contain path navigation: $(url)"))
+    end
+
+    return nothing
+end
+
 """
     Endpoint(
         method::Symbol,
@@ -187,23 +216,7 @@ struct Endpoint
         query::Dict=Dict(),
         allow_404::Bool=false,
     )
-        # Do not allow path navigation in URLs
-        # Disallowed pattern: ..
-        if occursin(r"\.\.", url)
-            throw(ArgumentError("URLs cannot contain path navigation"))
-        end
-
-        # Additional disallowed patterns:
-        # ../, ..\, /.., \.., ./, .\, /./, \.\
-        PATH_TRAVERSAL = r"(?:\.{2,}[\/\\]|\.{1,}[\/\\]|[\/\\]\.{2,}|[\/\\]\.{1,}[\/\\])"
-        if occursin(PATH_TRAVERSAL, url)
-            throw(ArgumentError("URLs cannot contain path navigation"))
-        end
-
-        # do not allow new lines or carriage returns in URLs
-        if occursin(r"\s", url)
-            throw(ArgumentError("URLs cannot contain line breaks"))
-        end
+        assert_check_endpoint_url(url)
         return new(method, url, headers, query, allow_404)
     end
 end
